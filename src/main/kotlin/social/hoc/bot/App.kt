@@ -1,10 +1,13 @@
 package social.hoc.bot
 
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.withCharset
@@ -20,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import social.hoc.bot.plugins.json
+import java.awt.SystemColor.text
 import java.io.File
 import kotlin.coroutines.coroutineContext
 import kotlin.random.Random.Default.nextBoolean
@@ -40,24 +44,24 @@ data class AppState(
     val installs: List<Install> = emptyList()
 )
 
+val http = HttpClient(CIO) {
+    expectSuccess = true
+
+    install(ContentNegotiation) {
+        json(json)
+    }
+
+    engine {
+        requestTimeout = 2.minutes.inWholeMilliseconds
+    }
+}
+
 class App {
 
     private val stateFile = File("./state.json")
     private var state: AppState
     private val scope = CoroutineScope(Dispatchers.Default)
     private val jobs = mutableListOf<Pair<String, Job>>()
-
-    private val http = HttpClient(CIO) {
-        expectSuccess = true
-
-        install(ContentNegotiation) {
-            json(json)
-        }
-
-        engine {
-            requestTimeout = 2.minutes.inWholeMilliseconds
-        }
-    }
 
     init {
         state = if (stateFile.exists()) stateFile.readText().let {
@@ -82,7 +86,7 @@ class App {
         scope.cancel()
     }
 
-    fun message(token: String, message: MessageBotBody): MessageBotResponse {
+    suspend fun message(token: String, message: MessageBotBody): MessageBotResponse {
         return MessageBotResponse(
             success = true,
             note = "Được luôn",
@@ -128,8 +132,8 @@ class App {
         saveState()
     }
 
-    private fun cho() = dict.dict.entries.random().let { entry ->
-        buildString {
+    private suspend fun cho() = dict.dict.entries.random().let { entry ->
+        val vn = buildString {
             entry.value.forEach {
                 append("${entry.key} (${it.tag})")
                 appendLine()
@@ -147,8 +151,23 @@ class App {
                     }
                 }
             }
+        }
+
+        val en = ai.get("""
+            Describe this Vietnamese word in English:
+            
+            $vn
+        """.trimIndent())
+
+        buildString {
+            append(vn)
             appendLine()
-            append("❤\uFE0F❤\uFE0F❤\uFE0F")
+            appendLine()
+            en?.let { en ->
+                append(en)
+                appendLine()
+                appendLine()
+            }
         }
     }
 
