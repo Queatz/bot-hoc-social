@@ -87,12 +87,24 @@ class App {
     }
 
     suspend fun message(token: String, message: MessageBotBody): MessageBotResponse {
+        val text = message.message.orEmpty().trim().trimStart('!')
+        val message = when {
+            text.isNotEmpty() -> {
+                ai.get(text)
+            }
+            else -> cho()
+        }
+        val success = !message.isNullOrBlank()
         return MessageBotResponse(
-            success = true,
-            note = "Được luôn",
-            actions = listOf(
-                BotAction(message = cho())
-            )
+            success = success,
+            note = if (success) "Được luôn" else "Điều đó đã không được luôn",
+            actions = if (success) {
+                listOf(
+                    BotAction(message = message)
+                )
+            } else {
+                emptyList()
+            }
         )
     }
 
@@ -153,11 +165,13 @@ class App {
             }
         }
 
-        val en = ai.get("""
-            Describe this Vietnamese word in English:
+        val en = ai.get(
+            """
+            Describe this Vietnamese word in English, adding two additional examples of its use in Vietnamese, with English equivalents. Use plain English (no markdown, styling, etc.).
             
             $vn
-        """.trimIndent())
+        """.trimIndent()
+        )
 
         buildString {
             append(vn)
@@ -175,7 +189,10 @@ class App {
         coroutineScope {
             while (true) {
                 send(install, cho())
-                delay(((install.config.firstOrNull { it.key == "frequency" }?.value?.toFloat() ?: 4f) * 1000 * 60 * 60).toLong())
+                delay(
+                    ((install.config.firstOrNull { it.key == "frequency" }?.value?.toFloat()
+                        ?: 4f) * 1000 * 60 * 60).toLong()
+                )
             }
         }
     }
