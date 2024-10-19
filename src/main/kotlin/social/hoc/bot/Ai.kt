@@ -66,6 +66,10 @@ class Ai {
                 OpenAiBody(
                     messages = listOf(
                         OpenAiMessage(
+                            role = "system",
+                            content = "Do not use markdown or any other formatting in any responses. Respond with plain text only."
+                        ),
+                        OpenAiMessage(
                             content = prompt
                         )
                     )
